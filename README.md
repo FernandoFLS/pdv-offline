@@ -28,7 +28,7 @@ Desenvolver um PDV que:
 
 ## Status do projeto
 
-Esta etapa é de preparação da documentação inicial e da estrutura mínima do repositório. Ainda não há implementação funcional da aplicação.
+O desenvolvimento deste projeto foi descontinuado porque a empresa cancelou o pedido do projeto.
 
 ## Documentação principal
 
