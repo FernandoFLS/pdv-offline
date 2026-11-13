@@ -108,3 +108,44 @@ A decisão final sobre backend, função serverless ou Google Apps Script depend
 - manutenção;
 - confiabilidade;
 - necessidade operacional.
+
+## 10. Implementação local do PIN e da sessão de usuário
+
+### Credencial
+
+- O PIN é texto numérico com pelo menos 6 dígitos; zeros à esquerda são preservados.
+- O banco guarda apenas a derivação PBKDF2-HMAC-SHA-256, salt aleatório individual de 16 bytes, versão do formato, algoritmo e número de iterações. O PIN original nunca é persistido nem registrado em logs.
+- A configuração inicial usa 600.000 iterações. A OWASP recomenda Argon2id quando disponível e registra 600.000 iterações PBKDF2-HMAC-SHA-256 no cenário de uso de PBKDF2 com requisito FIPS; esse projeto usa PBKDF2 pela disponibilidade nativa no Web Crypto e não declara conformidade FIPS. O parâmetro deve ser reavaliado se a experiência ficar lenta em computadores mais modestos. [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+- No runtime Node.js 24 disponível durante o desenvolvimento, três medições da implementação completa deram medianas de 392 ms para criar a credencial e 364 ms para validar um PIN. Isso não é uma medição do Chrome no computador de operação; faça essa validação antes de considerar o parâmetro definitivo.
+- PBKDF2 aumenta o custo de tentativas offline, mas um PIN de seis dígitos continua tendo baixa entropia. Sem um segredo mantido fora do navegador, a derivação não impede tentativa offline se alguém copiar os dados locais.
+- A derivação usa Web Crypto. Em navegadores, essa API exige contexto seguro; a aplicação deve ser servida por `localhost` durante desenvolvimento e HTTPS quando publicada. [MDN: `SubtleCrypto.deriveKey`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/deriveKey)
+
+### Tentativas e bloqueio
+
+- `failedPinAttempts`, `lockoutLevel` e `lockedUntil` são persistidos no registro do usuário no IndexedDB e atualizados em transação. Recarregar a página não zera o bloqueio.
+- Após cinco falhas consecutivas, o bloqueio inicial dura 30 segundos. Cada bloqueio subsequente dobra a duração até o máximo de 15 minutos. Uma autenticação correta zera o contador, o nível e o prazo.
+- O bloqueio é uma barreira de uso normal, não uma proteção contra o proprietário do perfil do navegador. Como a aplicação é local e offline, alguém com acesso às ferramentas do navegador pode alterar ou apagar o IndexedDB, e adiantar o relógio pode encurtar um bloqueio. A aplicação não pode oferecer resistência equivalente a um serviço de autenticação remoto.
+
+### Sessão e primeiro administrador
+
+- O primeiro administrador só pode ser cadastrado enquanto não existir nenhum registro de usuário. Não há PIN padrão nem recuperação automática do administrador nesta etapa.
+- A sessão autenticada existe apenas em memória. Atualizar ou fechar a página exige autenticação novamente.
+- Logout e bloqueio após cinco minutos sem atividade limpam a sessão em memória. Eles não fecham nem alteram uma sessão de caixa aberta.
+- O logout manual é propagado às outras abas abertas do mesmo perfil por `BroadcastChannel`; o prazo de inatividade é controlado individualmente em cada aba.
+- Apagar os dados locais remove também a identidade do primeiro administrador; a configuração inicial poderá aparecer novamente. Proteção contra adulteração ou remoção do perfil local não é garantida.
+
+### Gerenciamento de usuários
+
+- Somente uma sessão de administrador ativa pode listar ou alterar usuários. Os casos de uso repetem a validação do papel e do estado do administrador no IndexedDB durante a transação, pois esconder controles na interface não é autorização suficiente.
+- A tela administrativa recebe somente identificador, nome, papel, estado e data de cadastro; derivação do PIN e estado de bloqueio não são retornados.
+- Cadastro, atualização, redefinição de PIN, ativação/desativação e respectivo registro de auditoria são gravados na mesma transação. Auditorias não incluem PIN nem derivação da credencial.
+- Desativar uma conta é uma mudança lógica de estado. Ela não remove o usuário nem registros de caixa associados. Não é permitido desativar a própria conta ou remover/rebaixar o último administrador ativo.
+- Redefinir PIN ou alterar papel/estado encerra as sessões daquele usuário nas abas abertas. A sessão é apenas em memória; esse aviso não protege contra quem altera diretamente o IndexedDB ou executa código no perfil local.
+
+### Exclusão permanente de conta
+
+- A operação administrativa remove o registro e a credencial de `users`, mas arquiva somente os metadados de identidade necessários para manter a autoria dos registros históricos. O arquivo não é uma conta e não permite login.
+- A criação do arquivo, a exclusão da conta e a auditoria `user.deleted` são atômicas. Se o arquivo ou a auditoria falhar, a transação mantém a conta original.
+- O evento de exclusão registra administrador responsável, ID afetado, data/hora e uma cópia mínima do nome/papel/estado; não contém PIN, hash, salt nem parâmetros da credencial.
+- A exclusão da própria conta é bloqueada. A verificação de último administrador ocorre dentro da transação de escrita. Sessões do usuário excluído são invalidadas nas outras abas; serviços críticos ainda revalidam a existência e o estado ativo no banco.
+- A migração versionada cria `userIdentityArchive` sem editar ou excluir os dados existentes. Ela retém metadados pessoais mínimos enquanto houver registros históricos que dependem do ID; apagar também esse arquivo quebraria a atribuição histórica.

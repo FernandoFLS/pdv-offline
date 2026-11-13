@@ -25,17 +25,22 @@ Organizar o desenvolvimento do PDV em etapas pequenas, priorizando integridade, 
 
 ## 3. Etapa 2 — Persistência local e fluxo base do caixa
 
+### Estado atual
+- Aplicação mínima, banco IndexedDB versionado e testes de persistência implementados.
+- Cadastro inicial do administrador, autenticação por PIN, gerenciamento administrativo de usuários com exclusão auditável e arquivo de identidade histórica, bloqueio progressivo e expiração de sessão implementados.
+- Abertura, consulta, fechamento com conferência e movimentações manuais de entrada/saída implementados.
+
 ### Objetivo
 - definir o modelo local operacional;
 - registrar caixa, abertura, fechamento e histórico;
 - preparar a base para vendas e estoque.
 
 ### Funcionalidades esperadas
-- login por PIN;
-- sessão de caixa;
-- abertura e fechamento de caixa;
-- operações básicas de auditoria;
-- persistência local consistente.
+- login por PIN (implementado);
+- sessão única de caixa;
+- abertura, consulta e fechamento do caixa;
+- movimentos manuais sequenciados e auditados, com prevenção de duplicidade e saldo físico não negativo;
+- persistência local consistente com rollback em falha.
 
 ### Critério de conclusão
 - O caixa pode ser aberto, operado e fechado localmente sem perder integridade.
@@ -113,5 +118,5 @@ A ordem correta é:
 ## 9. Decisões em aberto
 
 - A tecnologia exata da integração externa com o Google Sheets será definida em momento posterior.
-- Os testes automatizados e a ferramenta escolhida para executá-los serão definidos em uma etapa posterior.
-- O desenvolvimento da interface e do código da aplicação ainda não foi iniciado.
+- A estratégia de manifesto e Service Worker da PWA será definida em uma etapa posterior.
+- Os fluxos de negócio e a interface operacional ainda não foram implementados.

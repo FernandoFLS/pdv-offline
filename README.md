@@ -28,7 +28,38 @@ Desenvolver um PDV que:
 
 ## Status do projeto
 
-O desenvolvimento deste projeto foi descontinuado porque a empresa cancelou o pedido do projeto.
+**Descontinuado:** o desenvolvimento foi encerrado após o cancelamento do pedido do projeto pela empresa. Consulte [STATUS_DO_PROJETO.md](STATUS_DO_PROJETO.md) para o registro.
+
+O projeto tem uma aplicação local com persistência versionada em IndexedDB, autenticação por PIN e gerenciamento administrativo de usuários, fluxo de abertura/consulta/fechamento do caixa e movimentações manuais de entrada e saída. Vendas, produtos, estoque e sincronização ainda não foram implementados.
+
+## Desenvolvimento local
+
+Requisitos: Node.js 22.12 ou mais recente e npm (incluído na instalação padrão do Node.js). O projeto fixa pnpm `11.25.0` em `package.json`.
+
+Instale a versão de pnpm usada pelo projeto e confirme a versão:
+
+```bash
+npm install --global pnpm@11.25.0
+pnpm --version
+```
+
+O segundo comando deve mostrar `11.25.0`. No Windows, se `pnpm` não for reconhecido logo após a instalação, abra um terminal novo para atualizar o PATH.
+
+```bash
+pnpm install
+pnpm dev
+```
+
+Para validar a base e gerar a versão de produção:
+
+```bash
+pnpm test
+pnpm build
+```
+
+O banco `pdv-offline` é criado no IndexedDB do navegador. As alterações de esquema devem ser adicionadas como novas migrações versionadas em `src/core/persistence/schema.js`; não altere migrações já publicadas.
+
+Após entrar com PIN, o administrador pode cadastrar e gerenciar usuários, incluindo papel, redefinição de PIN e ativação/desativação. Também pode excluir permanentemente a conta autenticável de outro usuário; uma identidade mínima permanece arquivada somente para preservar nomes e atribuição no histórico de caixa e auditoria. Administradores e operadores podem abrir o caixa, registrar entradas/saídas manuais com motivo e fechar a sessão informando o dinheiro contado. A tela apresenta o histórico e os totais. O saldo é calculado em centavos inteiros, saídas acima do disponível são recusadas e gravações críticas são atômicas no IndexedDB. Cada lançamento manual usa uma chave única de solicitação para evitar duplicação acidental. O logout não fecha o caixa. Cancelamento de lançamentos ainda não está implementado; correções futuras deverão usar estorno compensatório auditável, sem apagar o original. Os dados permanecem neste navegador e precisam de uma estratégia de backup antes de uso operacional real.
 
 ## Documentação principal
 
@@ -38,7 +69,7 @@ O desenvolvimento deste projeto foi descontinuado porque a empresa cancelou o pe
 - `docs/security.md` — regras de segurança, PIN, permissões e limites do navegador.
 - `docs/backup-recovery.md` — backup, restauração e recuperação.
 - `docs/sync-google-sheets.md` — integração externa e critérios para avaliação futura.
-- `docs/testing-scenarios.md` — cenários de testes documentados para etapas futuras.
+- `docs/testing-scenarios.md` — cenários de testes e cobertura automatizada atual.
 
 ## Regras centrais do negócio
 
@@ -95,13 +126,13 @@ O desenvolvimento deste projeto foi descontinuado porque a empresa cancelou o pe
 - Opções futuras a avaliar: backend próprio, função serverless ou Google Apps Script.
 - A arquitetura atual preserva a flexibilidade para essa escolha sem comprometer a estrutura do sistema.
 
-## Objetivos desta etapa
+## Objetivos da etapa documental (concluída)
 
 - Documentar escopo, regras de negócio e arquitetura.
 - Definir a organização do repositório.
 - Registrar requisitos de segurança, backup e sincronização.
 - Manter o projeto em estado evolutivo e seguro.
 
-## Aviso
+## Limites da implementação atual
 
-Este repositório ainda não contém código da aplicação nem implementação funcional. O foco desta etapa é documentação e preparação da base arquitetural.
+A interface atual oferece configuração inicial do administrador, login por PIN, cadastro de operadores e o fluxo base de abertura/consulta/fechamento do caixa. Ainda não é uma PWA instalável: manifesto e Service Worker serão preparados em uma etapa própria. Os dados do navegador são locais e não substituem backups.

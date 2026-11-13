@@ -8,12 +8,15 @@ A aplicação deve operar localmente em um único computador, mas a arquitetura 
 
 ## 2. Tecnologias e premissas iniciais
 
-Tecnologias consideradas inicialmente:
+Tecnologias selecionadas para a base técnica inicial:
 - JavaScript
 - HTML e CSS
 - Vite para desenvolvimento e build
+- IndexedDB para persistência local versionada
+- Vitest e `fake-indexeddb` para testes automatizados da persistência
+
+Etapas futuras:
 - PWA com Service Worker
-- IndexedDB para persistência local
 - Google Sheets para integração externa
 
 ### Observação técnica importante
@@ -44,6 +47,11 @@ Portanto, o projeto deve usar:
 - Login por PIN.
 - Perfis de administrador e operador.
 - Operações administrativas protegidas por autorização.
+- Administradores podem consultar, cadastrar e editar usuários, redefinir PINs e desativar ou reativar contas; operadores não podem acessar esses casos de uso.
+- Administradores podem excluir permanentemente o cadastro de outro usuário; a própria conta não pode ser excluída e deve permanecer ao menos um administrador ativo.
+- A exclusão remove a credencial da store de autenticação, mas mantém uma identidade arquivada mínima para resolver referências históricas. Não apaga nem reescreve sessões de caixa, movimentos ou auditorias anteriores.
+- Desativar/reativar controla acesso e preserva a conta; excluir permanentemente remove a conta autenticável e não pode ser desfeito pela interface.
+- Contas desativadas permanecem no histórico e não podem autenticar. Alterações de papel, estado ou PIN encerram sessões existentes do usuário afetado.
 - O PIN não deve ser salvo em texto puro.
 - Deve ser documentado o limite de segurança do PIN em uma aplicação local executada no navegador.
 
@@ -73,8 +81,15 @@ Portanto, o projeto deve usar:
 - Apenas um caixa aberto por vez.
 - Não permitir vendas com caixa fechado.
 - Abertura com valor inicial.
+- Registrar usuário e horário responsáveis pela abertura e pelo fechamento.
+- Armazenar valores em centavos inteiros; validar valores finitos, não negativos e com no máximo duas casas decimais.
+- Calcular no fechamento o valor esperado, o valor contado e a diferença assinada (contado menos esperado).
+- Gravar sessão, estado atual, movimento financeiro e auditoria numa única transação.
+- Logout e expiração de autenticação não fecham o caixa; outro usuário autenticado pode consultá-lo e fechá-lo.
 - Registro de retiradas (sangrias).
 - Registro de entradas adicionais (suprimentos).
+- Toda entrada ou saída manual exige valor positivo, motivo, operador autenticado e chave única de solicitação; a mesma chave com o mesmo conteúdo não duplica o lançamento.
+- A saída manual não pode ultrapassar o saldo físico esperado disponível. Os lançamentos são imutáveis; uma correção futura deve ser um estorno compensatório referenciando o movimento original, nunca edição ou exclusão silenciosa.
 - Fechamento com conferência dos valores esperados e informados.
 - Histórico de sessões de caixa.
 - Qualquer cancelamento ou ajuste financeiro relevante deve refletir de forma consistente no caixa e no histórico da sessão.
@@ -95,6 +110,7 @@ Os fluxos críticos devem ser projetados com foco em integridade e confiabilidad
 - Idempotência para evitar duplicação na sincronização e no reprocessamento.
 - Auditoria de cancelamentos, reversões e ajustes importantes.
 - Histórico permanente de vendas e movimentos financeiros.
+- Identificadores e autoria históricos devem continuar resolvíveis após remover uma conta autenticável.
 - Backups locais e estratégia de recuperação.
 - Tratamento de falhas sem deixar a venda parcialmente registrada.
 - Cancelamentos devem gerar registros de auditoria e compensações de caixa e estoque, em vez de apagar o histórico original da venda.
@@ -115,7 +131,7 @@ Os fluxos críticos devem ser projetados com foco em integridade e confiabilidad
 
 ## 8. Requisitos de testes
 
-Os testes serão planejados em uma etapa posterior e não serão implementados executáveis nesta fase. A documentação deve cobrir cenários críticos para uma etapa posterior de implementação, incluindo:
+Os testes de persistência, autenticação local (cadastro inicial, PIN, bloqueio, papéis e sessão de usuário) e fluxo base de abertura/consulta/fechamento do caixa possuem cobertura automatizada com Vitest e `fake-indexeddb`. Os cenários de negócio abaixo continuam documentados para implementação futura:
 - persistência local;
 - venda e baixa de estoque consistentes;
 - bloqueio de vendas com caixa fechado;
